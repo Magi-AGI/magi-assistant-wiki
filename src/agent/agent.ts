@@ -101,7 +101,7 @@ function formatPrompt(messages: ChatMessage[]): string {
 }
 
 function buildOptions(model: string, token: string, signal?: AbortSignal): Options {
-  return {
+  const opts: Options = {
     model,
     systemPrompt: SYSTEM_PROMPT,
     allowedTools: ALLOWED_TOOLS,
@@ -115,6 +115,8 @@ function buildOptions(model: string, token: string, signal?: AbortSignal): Optio
       },
     },
   };
+  if (config.claudeBinPath) opts.pathToClaudeCodeExecutable = config.claudeBinPath;
+  return opts;
 }
 
 function toAbortController(signal: AbortSignal): AbortController {

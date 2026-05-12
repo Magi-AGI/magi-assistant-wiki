@@ -40,6 +40,12 @@ export const config = {
   // Server
   port: intEnv("PORT", 8766),
 
+  // Optional explicit path to the Claude Code native binary. The SDK's
+  // built-in resolver tries linux-x64-musl BEFORE linux-x64 — on glibc Ubuntu
+  // that picks the wrong variant. Set this to the absolute path of the
+  // glibc binary on Linux deploys.
+  claudeBinPath: process.env.CLAUDE_BIN_PATH ?? "",
+
   // Defaults
   defaultModel: process.env.DEFAULT_MODEL ?? "claude-sonnet-4-6",
 
