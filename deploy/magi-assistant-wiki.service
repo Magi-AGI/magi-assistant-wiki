@@ -21,10 +21,11 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=magi-assistant-wiki
 
-# Hardening
+# Hardening — note: ProtectHome=false because the embedded Claude Code CLI
+# (shipped with the agent SDK) reads/writes ~/.claude/ for config and state.
 NoNewPrivileges=true
 ProtectSystem=full
-ProtectHome=true
+ProtectHome=false
 PrivateTmp=true
 LockPersonality=true
 RestrictRealtime=true
