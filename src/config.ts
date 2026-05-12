@@ -25,7 +25,12 @@ export const config = {
   // Anthropic API
   anthropicApiKey: required("ANTHROPIC_API_KEY"),
 
-  // hyperon-wiki MCP subprocess auth
+  // hyperon-wiki MCP — HTTP transport against the running hyperon-mcp-http.service.
+  // The SDK connects to mcpUrl with `Authorization: Bearer <jwt>`. The JWT is
+  // fetched on demand from mcpAuthUrl using MCP_USERNAME / MCP_PASSWORD.
+  // MCP_API_KEY (a pre-issued JWT) short-circuits the auth fetch when set.
+  mcpUrl: process.env.MCP_URL ?? "http://127.0.0.1:3002/mcp",
+  mcpAuthUrl: process.env.MCP_AUTH_URL ?? "http://127.0.0.1:3000/api/mcp/auth",
   mcpApiKey: process.env.MCP_API_KEY ?? "",
   mcpRole: process.env.MCP_ROLE ?? "user",
   mcpUsername: process.env.MCP_USERNAME ?? "",

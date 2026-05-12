@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.138",
-    "@magi-agi/mcp-server": "^0.1.0",
     "express": "^4.21.0",
     "dotenv": "^16.4.5"
   },
