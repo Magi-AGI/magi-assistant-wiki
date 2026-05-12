@@ -51,7 +51,11 @@ sudo -u "$SERVICE_USER" git checkout main
 sudo -u "$SERVICE_USER" git pull --ff-only
 
 # 3. Install dependencies (include dev for the TypeScript build).
-sudo -u "$SERVICE_USER" npm ci
+# Use `npm install` not `npm ci` so per-platform optionalDependencies (the
+# @anthropic-ai/claude-agent-sdk-<os>-<arch> native binary, 200+MB) get
+# resolved for the host's platform even if the committed lockfile was
+# generated on a different OS.
+sudo -u "$SERVICE_USER" npm install --no-audit --no-fund
 
 # 4. Build.
 sudo -u "$SERVICE_USER" npm run build
