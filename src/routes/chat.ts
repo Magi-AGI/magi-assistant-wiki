@@ -149,7 +149,13 @@ export async function chatRoute(req: Request, res: Response): Promise<void> {
     }
     // Surface to the structured log for debugging; never user-facing.
     const errMsg = err instanceof Error ? err.message : String(err);
-    process.stderr.write(`${JSON.stringify({ level: "error", turn_id: turnId, error: errMsg })}\n`);
+    const errStack = err instanceof Error ? err.stack?.split("\n").slice(0, 6).join(" | ") : undefined;
+    const errCause = err instanceof Error && (err as Error & { cause?: unknown }).cause
+      ? String((err as Error & { cause?: unknown }).cause)
+      : undefined;
+    process.stderr.write(
+      `${JSON.stringify({ level: "error", turn_id: turnId, error: errMsg, stack: errStack, cause: errCause })}\n`,
+    );
   } finally {
     clearTimeout(timeoutHandle);
     res.end();
