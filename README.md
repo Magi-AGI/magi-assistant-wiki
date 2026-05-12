@@ -105,19 +105,67 @@ V1 covers token-budget math; integration tests against a real MCP subprocess + A
 
 ## Deploy
 
-Sibling to Decko/Nginx on the EC2 host. Nginx routes:
+Runs as a systemd service alongside Decko/Nginx on the EC2 host. All artifacts live under [`deploy/`](./deploy/):
 
-```nginx
-location /api/assistant/ {
-    proxy_pass http://127.0.0.1:8766/api/assistant/;
-    proxy_buffering off;             # SSE
-    proxy_http_version 1.1;
-    proxy_set_header Connection "";
-    proxy_read_timeout 35s;          # > AGENT_TIMEOUT_MS=30s
-}
+| File | Purpose |
+|------|---------|
+| [`magi-assistant-wiki.service`](./deploy/magi-assistant-wiki.service) | systemd unit (Type=simple, user `magi-assistant`, hardened) |
+| [`nginx-rate-limits.conf`](./deploy/nginx-rate-limits.conf) | `http {}`-level rate-limit zones (plan B-7, tiered) |
+| [`nginx-assistant.conf`](./deploy/nginx-assistant.conf) | `server {}`-level location block (SSE-safe proxy) |
+| [`deploy.sh`](./deploy/deploy.sh) | idempotent install / update script (clone → npm ci → build → restart → health-check) |
+
+### First-time install (on the EC2 host, as root)
+
+```bash
+# 1. Clone the repo.
+git clone https://github.com/Magi-AGI/magi-assistant-wiki.git /opt/magi-assistant-wiki
+
+# 2. Populate secrets (ANTHROPIC_API_KEY + MCP auth).
+cp /opt/magi-assistant-wiki/.env.example /opt/magi-assistant-wiki/.env
+${EDITOR:-vi} /opt/magi-assistant-wiki/.env
+
+# 3. Wire Nginx — load rate-limit zones in http {}, location block in server {}.
+sudo cp /opt/magi-assistant-wiki/deploy/nginx-rate-limits.conf \
+        /etc/nginx/conf.d/magi-assistant-rate-limits.conf
+sudo cp /opt/magi-assistant-wiki/deploy/nginx-assistant.conf \
+        /etc/nginx/snippets/magi-assistant.conf
+# Then add `include /etc/nginx/snippets/magi-assistant.conf;` inside the
+# wiki.hyperon.dev server block, and reload:
+sudo nginx -t && sudo systemctl reload nginx
+
+# 4. Run the deploy script (creates the service user + systemd unit, builds, starts).
+sudo bash /opt/magi-assistant-wiki/deploy/deploy.sh
 ```
 
-Rate limits (plan B-7) belong upstream of this service in the Nginx config — keyed by `$cookie__hyperon_session` first, fallback to `$binary_remote_addr`.
+### Updates
+
+```bash
+sudo bash /opt/magi-assistant-wiki/deploy/deploy.sh
+```
+
+The script git-pulls `main`, rebuilds, prunes dev deps, restarts, and curls `/api/assistant/health` to confirm.
+
+### Observability
+
+```bash
+# Live structured logs (NO chat content — plan I-7).
+journalctl -u magi-assistant-wiki -f
+
+# Service status.
+systemctl status magi-assistant-wiki
+
+# Smoke test from the host.
+curl -s http://127.0.0.1:8766/api/assistant/health | jq
+
+# End-to-end through Nginx.
+curl -N -s -X POST https://wiki.hyperon.dev/api/assistant/chat \
+    -H 'content-type: application/json' \
+    -d '{"messages":[{"role":"user","content":"What is MeTTa?"}]}'
+```
+
+### Rate limit tiers (plan B-7)
+
+The two zones in `nginx-rate-limits.conf` use a `map` to short-circuit whichever zone shouldn't apply: requests with `_hyperon_session` cookie hit only the user zone (60/min), requests without hit only the IP zone (10/min). nginx skips `limit_req` when the key evaluates to an empty string, which is what the `map` produces for the inactive zone.
 
 ## Layout
 
@@ -139,6 +187,11 @@ magi-assistant-wiki/
 │   │   └── health.ts         # GET /api/assistant/health
 │   └── middleware/
 │       └── token-budget.ts   # cheap chars/4 token estimator
+├── deploy/
+│   ├── magi-assistant-wiki.service   # systemd unit
+│   ├── nginx-rate-limits.conf        # http{} rate-limit zones
+│   ├── nginx-assistant.conf          # server{} location block
+│   └── deploy.sh                     # install/update script
 └── tests/
     └── token-budget.test.ts
 ```

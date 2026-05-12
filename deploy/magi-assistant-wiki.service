@@ -1,0 +1,37 @@
+[Unit]
+Description=Magi Assistant Wiki (Hyperon Wiki right-column agent sidecar)
+Documentation=https://github.com/Magi-AGI/magi-assistant-wiki
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=magi-assistant
+Group=magi-assistant
+WorkingDirectory=/opt/magi-assistant-wiki
+EnvironmentFile=/opt/magi-assistant-wiki/.env
+Environment=NODE_ENV=production
+# node_modules/.bin must be on PATH so the agent SDK can spawn `hyperon-wiki-mcp`
+# (the @magi-agi/mcp-server stdio wrapper installed as a direct dependency).
+Environment=PATH=/opt/magi-assistant-wiki/node_modules/.bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=magi-assistant-wiki
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+MemoryMax=512M
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target
