@@ -83,12 +83,22 @@ export async function chatRoute(req: Request, res: Response): Promise<void> {
   const abortCtrl = new AbortController();
   const timeoutHandle = setTimeout(() => {
     setStatus("timeout");
+    process.stderr.write(`{"level":"debug","turn_id":"${turnId}","abort_source":"timeout"}\n`);
     abortCtrl.abort();
   }, config.agentTimeoutMs);
 
   // Detach if the client disconnects.
   req.on("close", () => {
-    if (!res.writableEnded) abortCtrl.abort();
+    if (!res.writableEnded) {
+      process.stderr.write(`{"level":"debug","turn_id":"${turnId}","abort_source":"req-close","writableEnded":${res.writableEnded}}\n`);
+      abortCtrl.abort();
+    }
+  });
+  req.on("aborted", () => {
+    process.stderr.write(`{"level":"debug","turn_id":"${turnId}","abort_source":"req-aborted"}\n`);
+  });
+  abortCtrl.signal.addEventListener("abort", () => {
+    process.stderr.write(`{"level":"debug","turn_id":"${turnId}","abort_fired":true}\n`);
   });
 
   try {
