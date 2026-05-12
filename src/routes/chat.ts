@@ -83,22 +83,15 @@ export async function chatRoute(req: Request, res: Response): Promise<void> {
   const abortCtrl = new AbortController();
   const timeoutHandle = setTimeout(() => {
     setStatus("timeout");
-    process.stderr.write(`{"level":"debug","turn_id":"${turnId}","abort_source":"timeout"}\n`);
     abortCtrl.abort();
   }, config.agentTimeoutMs);
 
-  // Detach if the client disconnects.
-  req.on("close", () => {
-    if (!res.writableEnded) {
-      process.stderr.write(`{"level":"debug","turn_id":"${turnId}","abort_source":"req-close","writableEnded":${res.writableEnded}}\n`);
-      abortCtrl.abort();
-    }
-  });
-  req.on("aborted", () => {
-    process.stderr.write(`{"level":"debug","turn_id":"${turnId}","abort_source":"req-aborted"}\n`);
-  });
-  abortCtrl.signal.addEventListener("abort", () => {
-    process.stderr.write(`{"level":"debug","turn_id":"${turnId}","abort_fired":true}\n`);
+  // Detach if the client disconnects mid-stream. Note: must be res.on("close"),
+  // not req.on("close") — in Node 20+ req fires "close" as soon as the request
+  // body has been fully consumed by upstream middleware (express.json), not
+  // when the socket actually closes. res "close" fires on real disconnect.
+  res.on("close", () => {
+    if (!res.writableEnded) abortCtrl.abort();
   });
 
   try {
